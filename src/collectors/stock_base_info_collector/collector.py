@@ -7,7 +7,7 @@ import shutil
 from utils.write_to_excel import *
 import json
 from .parser import *
-
+from collectors.stock_daily_collector import StockDailyCollector
 
 class StockBaseInfoCollector:
     def __init__(self, root_folder='data', force = False):
@@ -30,6 +30,7 @@ class StockBaseInfoCollector:
              "succeed_stocks": [],
         }
         self.force = force
+        self.daily_collector = StockDailyCollector(self.data_folder, self.force)
         self.daily_summary_file = path.join(self.root_folder, 'daily_summary.json')
         
     async def __aenter__(self):
@@ -41,6 +42,7 @@ class StockBaseInfoCollector:
     async def __aexit__(self, exc_type, exc_value, traceback):
         self.auto_save()
         self.finalize_summary()
+        await self.daily_collector.close()
         await self.list_rt.closeSession(),
         await self.info_rt.closeSession()
 
@@ -126,7 +128,21 @@ class StockBaseInfoCollector:
                 return
             html = await self.list_rt.afetch_with_browser(url)
             if html:
-                self.result.extend(process_stock_list_html(html))
+                new_result = process_stock_list_html(html)
+                for item in new_result:
+                    stock_code = item.get('stock_code').get('value')
+                    stock_info = await self.daily_collector.collect_data(stock_code)
+                    if stock_info:
+                        item.update({
+                            "final_price":{
+                                "value": stock_info['cur_price'],
+                                "title": "收盘价格",
+                            },
+                            "D":{ "value": stock_info['data'][-1]['D'], "title": "D值"},
+                            "K":{ "value": stock_info['data'][-1]['K'], "title": "K值"},
+                            "J":{ "value": stock_info['data'][-1]['J'], "title": "J值"},
+                        })
+                self.result.extend(new_result)
             self.succeed_urls.append(url)
             self.auto_save()
         except Exception as e:

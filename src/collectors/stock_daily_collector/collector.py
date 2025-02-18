@@ -25,9 +25,12 @@ class StockDailyCollector():
         return self
         
     async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.close()
+    
+    async def close(self):
         self.auto_save()
         await self.request_tool.closeSession()
-    
+
     def clean(self):
         # remve current data folder
         shutil.rmtree(self.data_folder)
@@ -59,7 +62,8 @@ class StockDailyCollector():
         url=f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/01/all.js'
         today_url = f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/01/defer/today.js'
         if stock_code in self.temp_data['succeed_stocks']:
-            return
+            with open(path.join(self.data_folder, stock_code+'.json'), 'r', encoding='utf-8') as f:
+                return json.load(f)
         json_data = await self.request_tool.afetch(url)
         if json_data is None:
             return
