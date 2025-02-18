@@ -1,0 +1,5 @@
+scrapy
+pandas
+openpyxl
+aiohttp
+beautifulsoup4

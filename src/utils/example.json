@@ -1,0 +1,12 @@
+[
+    {
+        "股票代码": {
+            "value": "123",
+            "textColor": "black"
+        },
+        "涨幅": {
+            "value": "123",
+            "textColor": "black"
+        }
+    }
+]
