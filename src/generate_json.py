@@ -3,7 +3,7 @@ import re
 import asyncio
 import os
 from datetime import datetime
-from stock_data_collector import StockDataCollector
+from collectors.stock_base_info_collector import StockBaseInfoCollector
 
 def get_urls(page_num: int):
     urls = []
@@ -17,7 +17,7 @@ async def main():
         "https://data.10jqka.com.cn/funds/ggzjl/field/zdf/order/desc/page/2/ajax/1/free/1/",
     ]
     try:
-        async with StockDataCollector() as sc:
+        async with StockBaseInfoCollector() as sc:
             for url in get_urls(103):
                 await sc.collect_data(url)
             sc.export_to_excel()

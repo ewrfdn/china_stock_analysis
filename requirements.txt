@@ -3,3 +3,5 @@ pandas
 openpyxl
 aiohttp
 beautifulsoup4
+nest_asyncio
+pyppeteer

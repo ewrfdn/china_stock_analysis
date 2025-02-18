@@ -13,13 +13,8 @@ class RequestTool:
         self.semaphore = asyncio.Semaphore(concurrency)
         self.session = None
         self.default_headers = default_headers or {}
-
         # Launch headless browser at initialization using pyppeteer with Edge.
-        self.browser = run_async(launch(
-            headless=True,
-            args=['--no-sandbox'],
-            executablePath=r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'  # adjust path as needed
-        ))
+        self.browser = None
     
     def ensureSession(self):
         # 如果 session 不存在或已关闭则创建一个新的 session
@@ -54,11 +49,16 @@ class RequestTool:
                     else:
                         raise e
 
+    async def ensureBrowser(self):
+        if self.browser is None:
+            self.browser = await launch(headless=True, executablePath='C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe')
+
     async def afetch_with_browser(self, url: str, wait_time: int = 5) -> str:
         """
         Asynchronously fetch page content using a pre-initialized browser.
         Uses an installed Edge if executablePath is provided.
         """
+        await self.ensureBrowser()
         page = await self.browser.newPage()
         try:
             # Set a common User-Agent string

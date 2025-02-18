@@ -6,12 +6,10 @@ import os
 import shutil
 from utils.write_to_excel import *
 import json
-from parser import *
-import asyncio
-from utils.async_utils import run_async
+from .parser import *
 
 
-class StockDataCollector:
+class StockBaseInfoCollector:
     def __init__(self, root_folder='data', force = False):
         '''
         result example 
