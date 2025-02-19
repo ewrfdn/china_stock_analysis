@@ -5,9 +5,10 @@ import os.path as path
 import os
 import shutil
 from utils.write_to_excel import *
+from utils.async_utils import async_run_all
 import json
 from .parser import *
-from collectors.stock_daily_collector import StockDailyCollector
+from collectors.stock_history_collector import StockHistoryCollector
 
 class StockBaseInfoCollector:
     def __init__(self, root_folder='data', force = False):
@@ -30,9 +31,14 @@ class StockBaseInfoCollector:
              "succeed_stocks": [],
         }
         self.force = force
-        self.daily_collector = StockDailyCollector(self.data_folder, self.force)
+        self.daily_collector = StockHistoryCollector(self.data_folder, self.force)
+        self.weekly_collector = StockHistoryCollector(self.data_folder, self.force, 'weekly')
+        self.monthly_collector = StockHistoryCollector(self.data_folder, self.force, 'monthly')
         self.daily_summary_file = path.join(self.root_folder, 'daily_summary.json')
-        
+    
+    def init_daily_collector_pool(self):
+        pass
+
     async def __aenter__(self):
         if self.force:
             self.clean()
@@ -126,27 +132,85 @@ class StockBaseInfoCollector:
             if url in self.succeed_urls:
                 print(f"{url} already fetched skip")
                 return
-            html = await self.list_rt.afetch_with_browser(url)
-            if html:
-                new_result = process_stock_list_html(html)
-                for item in new_result:
-                    stock_code = item.get('stock_code').get('value')
-                    stock_info = await self.daily_collector.collect_data(stock_code)
-                    if stock_info:
-                        item.update({
-                            "final_price":{
-                                "value": stock_info['cur_price'],
-                                "title": "收盘价格",
-                            },
-                            "D":{ "value": stock_info['data'][-1]['D'], "title": "D值"},
-                            "K":{ "value": stock_info['data'][-1]['K'], "title": "K值"},
-                            "J":{ "value": stock_info['data'][-1]['J'], "title": "J值"},
-                        })
-                self.result.extend(new_result)
-            self.succeed_urls.append(url)
-            self.auto_save()
+            else:
+                html = await self.list_rt.afetch_with_browser(url)
+                if html:
+                    new_result = process_stock_list_html(html)
+                    self.result.extend(new_result)
+                self.succeed_urls.append(url)
+                self.auto_save()
         except Exception as e:
             print(f"failed to fetch {url}: {e}")
+    
+    async def collect_history_data(self):
+        try:
+            params = [(item,) for item in self.result]
+            await async_run_all(self.collect_daily_data, params, 20)
+            await async_run_all(self.collect_weekly_data, params, 20)
+            await async_run_all(self.collect_monthly_data, params, 20)
+        except Exception as e:
+            print(f"failed to fetch: {e}")
+            raise e 
+    
+    async def collect_daily_data(self, item):
+       
+            try:
+                stock_code = item.get('stock_code').get('value')
+                stock_info = await self.daily_collector.collect_data(stock_code)
+                item.update({
+                    "final_price":{
+                        "value": stock_info['cur_price'],
+                        "title": "收盘价格",
+                    },
+                    "D":{ "value": stock_info['data'][-1]['D'], "title": "D值"},
+                    "K":{ "value": stock_info['data'][-1]['K'], "title": "K值"},
+                    "J":{ "value": stock_info['data'][-1]['J'], "title": "J值"},
+                })
+            except Exception as e:
+                print(f"failed to fetch daily data for {stock_code}: {e}")
+                item.update({
+                    "final_price":{
+                        "value": 0,
+                        "title": "收盘价格",
+                    },
+                    "D":{ "value": 0, "title": "D值"},
+                    "K":{ "value": 0, "title": "K值"},
+                    "J":{ "value": 0, "title": "J值"},
+                })
+
+    async def collect_weekly_data(self, item):
+        try:
+            stock_code = item.get('stock_code').get('value')
+            stock_info = await self.weekly_collector.collect_data(stock_code)
+            item.update({
+                "D_W":{ "value": stock_info['data'][-1]['D'], "title": "D值-周线"},
+                "K_W":{ "value": stock_info['data'][-1]['K'], "title": "K值-周线"},
+                "J_W":{ "value": stock_info['data'][-1]['J'], "title": "J值-周线"},
+            })
+        except Exception as e:
+            print(f"failed to fetch weekly data for {stock_code}: {e}")
+            item.update({
+                "D_W":{ "value": 0, "title": "D值-周线"},
+                "K_W":{ "value": 0, "title": "K值-周线"},
+                "J_W":{ "value": 0, "title": "J值-周线"},
+            })
+    
+    async def collect_monthly_data(self, item):
+        try:
+            stock_code = item.get('stock_code').get('value')
+            stock_info = await self.monthly_collector.collect_data(stock_code)
+            item.update({
+                "D_M":{ "value": stock_info['data'][-1]['D'], "title": "D值-月线"},
+                "K_M":{ "value": stock_info['data'][-1]['K'], "title": "K值-月线"},
+                "J_M":{ "value": stock_info['data'][-1]['J'], "title": "J值-月线"},
+            })
+        except Exception as e:
+            print(f"failed to fetch monthly data for {stock_code}: {e}")
+            item.update({
+                "D_M":{ "value": 0, "title": "D值-月线"},
+                "K_M":{ "value": 0, "title": "K值-月线"},
+                "J_M":{ "value": 0, "title": "J值-月线"},
+            })
 
     def export_to_excel(self):
         write_to_excel(self.result, f'{self.data_folder}/result.xlsx')

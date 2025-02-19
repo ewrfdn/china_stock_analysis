@@ -49,7 +49,8 @@ def normalize_data(data):
         result['short_date'] = result['data'][-1]['date']
         result['cur_price'] = result['data'][-1]['final_price']
         result['delta'] = result['data'][-1]['final_price'] - result['data'][0]['final_price']
-        result['delta_percent'] = result['delta'] / result['data'][0]['final_price']
+        if result['data'][0]['final_price'] != 0:
+            result['delta_percent'] = result['delta'] / result['data'][0]['final_price']
     except json.JSONDecodeError:
         return None
     return result

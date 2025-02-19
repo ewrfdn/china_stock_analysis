@@ -18,8 +18,9 @@ async def main():
     ]
     try:
         async with StockBaseInfoCollector() as sc:
-            for url in get_urls(2):
+            for url in get_urls(103):
                 await sc.collect_data(url)
+            await sc.collect_history_data()
             sc.export_to_excel()
     except Exception as e:
         raise e

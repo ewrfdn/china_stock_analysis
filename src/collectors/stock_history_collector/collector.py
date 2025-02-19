@@ -7,11 +7,19 @@ from utils.request_tool import RequestTool
 from .parser import normalize_data, stock_KDJ_calculate, extra_json_data
 
 
-class StockDailyCollector():
-    def __init__(self, root_path, force=False):
+class StockHistoryCollector():
+    def __init__(self, root_path, force=False, type='daily'):
         self.root_folder = root_path
-        self.data_folder = path.join(self.root_folder, 'daily')
+        self.type = type
+        self.data_folder = path.join(self.root_folder, self.type)
+        self.type_flag='01'
+        if type == 'weekly':
+            self.type_flag = '11'
+        elif type == 'monthly':
+            self.type_flag = '21'
         self.temp_file_path = path.join(self.data_folder, 'temp.json')
+        self.save_count = 0
+        self.max_save_count = 10
         self.temp_data = {
             "succeed_stocks": []}
         self.force = force
@@ -28,6 +36,7 @@ class StockDailyCollector():
         await self.close()
     
     async def close(self):
+        self.save_count = self.save_count + 1
         self.auto_save()
         await self.request_tool.closeSession()
 
@@ -52,19 +61,22 @@ class StockDailyCollector():
                 }
 
     def auto_save(self):
-        with open(self.temp_file_path, 'w', encoding='utf-8') as f:
-            json.dump(self.temp_data, f,ensure_ascii=False, indent=4)
+        self.save_count = self.save_count + 1
+        if self.save_count % self.max_save_count == 0:
+            self.save_count = 0
+            with open(self.temp_file_path, 'w', encoding='utf-8') as f:
+                json.dump(self.temp_data, f,ensure_ascii=False, indent=4)
 
 
 
 
     async def collect_data(self, stock_code):
-        url=f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/01/all.js'
-        today_url = f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/01/defer/today.js'
+        url=f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/{self.type_flag}/all.js'
+        today_url = f'https://d.10jqka.com.cn/v6/line/hs_{stock_code}/{self.type_flag}/defer/today.js'
         if stock_code in self.temp_data['succeed_stocks']:
             with open(path.join(self.data_folder, stock_code+'.json'), 'r', encoding='utf-8') as f:
                 return json.load(f)
-        json_data = await self.request_tool.afetch(url)
+        json_data = await self.request_tool.afetch_with_browser(url)
         if json_data is None:
             return
         today_data = await self.request_tool.afetch_with_browser(today_url)

@@ -11,7 +11,7 @@ def write_to_excel(json_data, output_file_path):
 
     # Add headers
     for col_num, header in enumerate(headers, 1):
-        sheet.cell(row=1, column=col_num, value=json_data[0][header]['title'])
+        sheet.cell(row=1, column=col_num, value=json_data[0].get(header,{}).get('title'))
 
     # Add data rows
     for row_num, item in enumerate(json_data, 2):

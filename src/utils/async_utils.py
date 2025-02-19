@@ -13,3 +13,14 @@ def run_async(coro):
         return future.result()
     else:
         return asyncio.run(coro)
+
+async def async_run_all(method, param_list, concurrency):
+    sem = asyncio.Semaphore(concurrency)
+
+    async def run_with_sem(params):
+        async with sem:
+            return await method(*params)
+
+    tasks = [asyncio.create_task(run_with_sem(p)) for p in param_list]
+    return await asyncio.gather(*tasks)
+

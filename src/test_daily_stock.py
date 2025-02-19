@@ -1,5 +1,5 @@
 import asyncio
-from collectors.stock_daily_collector import StockDailyCollector
+from collectors.stock_history_collector import StockDailyCollector
 
 async def main():
     async with StockDailyCollector('./data') as sc:
