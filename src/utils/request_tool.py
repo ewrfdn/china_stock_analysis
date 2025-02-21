@@ -5,13 +5,14 @@ import time
 from utils.async_utils import run_async  # for synchronous launching of browser
 
 class RequestTool:
-    def __init__(self, cookies: dict = None, concurrency: int = 5, retries: int = 3, retry_delay: int = 1, default_headers: dict = None):
+    def __init__(self, cookies: dict = None, concurrency: int = 5, retries: int = 3, retry_delay: int = 1, default_headers: dict = None, debug=False):
         self.concurrency = concurrency
         self.cookies = cookies
         self.retries = retries
         self.retry_delay = retry_delay
         self.semaphore = asyncio.Semaphore(concurrency)
         self.session = None
+        self.debug = debug
         self.default_headers = default_headers or {}
         # Launch headless browser at initialization using pyppeteer with Edge.
         self.browser = None
@@ -85,8 +86,9 @@ class RequestTool:
             await page.goto(url, {'waitUntil': 'networkidle2'})
             await page.waitFor(wait_time * 1000)
             content = await page.content()
-            print(f"Fetched {url}")
-            print(content)
+            if self.debug:
+                print(f"Fetched {url}")
+                print(content)
             return content
         finally:
             await page.close()
